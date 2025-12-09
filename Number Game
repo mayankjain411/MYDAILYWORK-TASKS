@@ -1,0 +1,161 @@
+package com.mayank;
+
+import javax.swing.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.*;
+import java.util.Random;
+
+public class NumberGuessingGameGUI extends JFrame {
+
+    // --- Game State Variables ---
+    private final int MIN_RANGE = 1;
+    private final int MAX_RANGE = 100;
+    private final int MAX_ATTEMPTS = 5;
+    private int secretNumber;
+    private int attemptsLeft;
+    private int totalScore = 0;
+    private int roundsWon = 0;
+    private Random random = new Random();
+
+    // --- UI Components ---
+    private JTextField guessInput;
+    private JButton guessButton;
+    private JButton playAgainButton;
+    private JLabel feedbackLabel;
+    private JLabel statusLabel;
+    private JLabel rangeLabel;
+
+    public NumberGuessingGameGUI() {
+        // 1. Configure the main frame (window)
+        setTitle("Number Guessing Game");
+        setSize(400, 300);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLocationRelativeTo(null);
+        setLayout(new BorderLayout(10, 10));
+
+        // --- 2. Top Panel (Instruction/Range) ---
+        JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        rangeLabel = new JLabel("Guess a number between " + MIN_RANGE + " and " + MAX_RANGE);
+        rangeLabel.setFont(new Font("Arial", Font.BOLD, 14));
+        topPanel.add(rangeLabel);
+        add(topPanel, BorderLayout.NORTH);
+
+        // --- 3. Center Panel (Input and Button) ---
+        JPanel centerPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 10));
+        guessInput = new JTextField(10);
+        guessButton = new JButton("Guess");
+        playAgainButton = new JButton("Play Again");
+        playAgainButton.setEnabled(false);
+
+        centerPanel.add(new JLabel("Your Guess:"));
+        centerPanel.add(guessInput);
+        centerPanel.add(guessButton);
+        centerPanel.add(playAgainButton);
+        add(centerPanel, BorderLayout.CENTER);
+
+        // --- 4. Feedback Panel (Result/Status) ---
+        JPanel bottomPanel = new JPanel(new GridLayout(2, 1, 5, 5));
+        feedbackLabel = new JLabel("Enter your guess to start!", SwingConstants.CENTER);
+        feedbackLabel.setFont(new Font("Arial", Font.PLAIN, 16));
+        statusLabel = new JLabel("Attempts: " + MAX_ATTEMPTS + " | Score: 0 (Rounds Won: 0)", SwingConstants.CENTER);
+
+        bottomPanel.add(feedbackLabel);
+        bottomPanel.add(statusLabel);
+        add(bottomPanel, BorderLayout.SOUTH);
+
+        // --- 5. Start the Game & Add Listeners ---
+        startGame();
+        addEventListeners();
+
+        setVisible(true);
+    }
+
+    /** Initializes a new round of the game. */
+    private void startGame() {
+        secretNumber = random.nextInt(MAX_RANGE - MIN_RANGE + 1) + MIN_RANGE;
+        attemptsLeft = MAX_ATTEMPTS;
+
+        guessInput.setText("");
+        guessInput.setEnabled(true);
+        guessButton.setEnabled(true);
+        playAgainButton.setEnabled(false);
+        feedbackLabel.setText("Guess a number between 1 and 100.");
+        updateStatusLabel();
+    }
+
+    /** Updates the Attempts Left and Score display. */
+    private void updateStatusLabel() {
+        statusLabel.setText(String.format("Attempts: %d | Score: %d (Rounds Won: %d)",
+                attemptsLeft, totalScore, roundsWon));
+    }
+
+    /** Handles the user's guess action. */
+    private void checkGuess() {
+        try {
+            int guess = Integer.parseInt(guessInput.getText().trim());
+
+            if (guess < MIN_RANGE || guess > MAX_RANGE) {
+                feedbackLabel.setText("Please enter a number within the range!");
+                return;
+            }
+
+            attemptsLeft--;
+
+            if (guess == secretNumber) {
+                feedbackLabel.setText("🎉 Correct! You won the round!");
+
+                int roundScore = attemptsLeft + 1;
+                totalScore += roundScore;
+                roundsWon++;
+
+                endRound(true);
+            } else if (guess < secretNumber) {
+                feedbackLabel.setText("Too Low! Try again.");
+            } else { // guess > secretNumber
+                feedbackLabel.setText("Too High! Try again.");
+            }
+
+            guessInput.setText("");
+
+            if (attemptsLeft == 0 && !feedbackLabel.getText().contains("Correct")) {
+                feedbackLabel.setText("❌ Game Over! The number was " + secretNumber + ".");
+                endRound(false);
+            }
+
+            updateStatusLabel();
+
+        } catch (NumberFormatException e) {
+            feedbackLabel.setText("Invalid input. Enter a whole number.");
+        }
+    }
+
+    /** Ends the current round, disabling guessing and enabling play again. */
+    private void endRound(boolean won) {
+        guessInput.setEnabled(false);
+        guessButton.setEnabled(false);
+        playAgainButton.setEnabled(true);
+
+        if (won) {
+            feedbackLabel.setText(feedbackLabel.getText() + " You earned " + (attemptsLeft + 1) + " points!");
+        }
+    }
+
+    /** Sets up the action listeners for the buttons. */
+    private void addEventListeners() {
+        // ActionListener for the Guess button
+        guessButton.addActionListener(e -> checkGuess());
+
+        // ActionListener for pressing ENTER in the text field
+        guessInput.addActionListener(e -> checkGuess());
+
+        // ActionListener for the Play Again button
+        playAgainButton.addActionListener(e -> startGame());
+    }
+
+    // --- MAIN METHOD ---
+    public static void main(String[] args) {
+        // The SwingUtilities.invokeLater ensures the UI starts on the proper thread (EDT).
+        SwingUtilities.invokeLater(() -> new NumberGuessingGameGUI());
+    }
+}
