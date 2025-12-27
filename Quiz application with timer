@@ -1,0 +1,281 @@
+package com.mayank;
+
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.util.Arrays;
+
+/**
+ * Class 1: Represents a single quiz question (Model)
+ * Stores the question text, options, and the index of the correct answer.
+ */
+class Question {
+    String questionText;
+    String[] options;
+    int correctOptionIndex; // Index (0, 1, 2, 3) of the correct option
+
+    public Question(String questionText, String[] options, int correctOptionIndex) {
+        this.questionText = questionText;
+        this.options = options;
+        this.correctOptionIndex = correctOptionIndex;
+    }
+}
+
+/**
+ * Class 2: The Main Quiz Application (View and Controller)
+ * Manages the UI, timer, question flow, and scoring logic.
+ */
+public class QuizApplicationGUI extends JFrame {
+
+    // --- Quiz Data & State ---
+    private Question[] questions;
+    private int currentQuestionIndex = 0;
+    private int score = 0;
+    private int correctAnswers = 0;
+    private int incorrectAnswers = 0;
+
+    // --- Timer Configuration ---
+    private final int TIME_LIMIT_SECONDS = 15; // 15 seconds per question
+    private int timeLeft;
+    private Timer swingTimer; // The timer for the quiz
+
+    // --- UI Components ---
+    private JLabel timerLabel;
+    private JTextArea questionDisplay;
+    private JRadioButton[] optionButtons;
+    private ButtonGroup optionGroup;
+    private JButton submitButton;
+    private JButton nextButton;
+    private JLabel statusLabel; // Shows current score/question number
+
+    public QuizApplicationGUI() {
+        // --- 1. Initialize Questions ---
+        initializeQuestions();
+
+        // --- 2. Frame Setup ---
+        setTitle("Java Quiz Application with Timer");
+        setSize(550, 450);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLayout(new BorderLayout(10, 10));
+
+        // --- 3. Top Panel: Timer and Status ---
+        JPanel topPanel = new JPanel(new GridLayout(1, 2));
+        timerLabel = new JLabel("Time Left: " + TIME_LIMIT_SECONDS + "s", SwingConstants.CENTER);
+        timerLabel.setFont(new Font("Arial", Font.BOLD, 16));
+        timerLabel.setForeground(Color.RED);
+        statusLabel = new JLabel("Question 1 of " + questions.length + " | Score: 0", SwingConstants.CENTER);
+        topPanel.add(timerLabel);
+        topPanel.add(statusLabel);
+        add(topPanel, BorderLayout.NORTH);
+
+        // --- 4. Center Panel: Question Display and Options ---
+        JPanel centerPanel = new JPanel(new BorderLayout(10, 10));
+        questionDisplay = new JTextArea();
+        questionDisplay.setEditable(false);
+        questionDisplay.setLineWrap(true);
+        questionDisplay.setWrapStyleWord(true);
+        questionDisplay.setFont(new Font("SansSerif", Font.PLAIN, 16));
+        centerPanel.add(new JScrollPane(questionDisplay), BorderLayout.NORTH);
+
+        JPanel optionsPanel = new JPanel(new GridLayout(4, 1, 5, 5));
+        optionButtons = new JRadioButton[4];
+        optionGroup = new ButtonGroup();
+        for (int i = 0; i < 4; i++) {
+            optionButtons[i] = new JRadioButton("Option " + (i + 1));
+            optionGroup.add(optionButtons[i]);
+            optionsPanel.add(optionButtons[i]);
+        }
+        centerPanel.add(optionsPanel, BorderLayout.CENTER);
+        add(centerPanel, BorderLayout.CENTER);
+
+        // --- 5. Bottom Panel: Controls ---
+        JPanel bottomPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 10));
+        submitButton = new JButton("Submit Answer");
+        nextButton = new JButton("Next Question >>");
+        nextButton.setEnabled(false);
+
+        bottomPanel.add(submitButton);
+        bottomPanel.add(nextButton);
+        add(bottomPanel, BorderLayout.SOUTH);
+
+        // --- 6. Start Quiz Flow ---
+        addEventListeners();
+        displayQuestion();
+
+        setVisible(true);
+    }
+
+    /** Populates the questions array with sample data. */
+    private void initializeQuestions() {
+        questions = new Question[]{
+                new Question("What is the primary function of the 'main' method in Java?",
+                        new String[]{"To declare variables", "To start program execution", "To define a class", "To import libraries"}, 1),
+                new Question("Which Java keyword is used to prevent method overriding?",
+                        new String[]{"static", "abstract", "final", "transient"}, 2),
+                new Question("What is the size of the 'char' data type in Java?",
+                        new String[]{"8 bits", "16 bits", "32 bits", "64 bits"}, 1),
+                new Question("Which Swing component provides a multi-line area for displaying text?",
+                        new String[]{"JTextField", "JCheckBox", "JTextArea", "JList"}, 2)
+        };
+    }
+
+    /** Sets up the action listeners for buttons. */
+    private void addEventListeners() {
+        submitButton.addActionListener(e -> submitAnswer());
+        nextButton.addActionListener(e -> nextQuestion());
+    }
+
+    /** Displays the current question and starts the timer. */
+    private void displayQuestion() {
+        if (currentQuestionIndex >= questions.length) {
+            showResults();
+            return;
+        }
+
+        Question q = questions[currentQuestionIndex];
+
+        // Reset UI
+        questionDisplay.setText((currentQuestionIndex + 1) + ". " + q.questionText);
+        optionGroup.clearSelection();
+        for (int i = 0; i < 4; i++) {
+            optionButtons[i].setText(q.options[i]);
+            optionButtons[i].setEnabled(true);
+        }
+        submitButton.setEnabled(true);
+        nextButton.setEnabled(false);
+
+        statusLabel.setText(String.format("Question %d of %d | Score: %d",
+                currentQuestionIndex + 1, questions.length, score));
+
+        startTimer();
+    }
+
+    /** Initializes and starts the Swing Timer. */
+    private void startTimer() {
+        if (swingTimer != null && swingTimer.isRunning()) {
+            swingTimer.stop();
+        }
+
+        timeLeft = TIME_LIMIT_SECONDS;
+        timerLabel.setText("Time Left: " + timeLeft + "s");
+
+        swingTimer = new Timer(1000, new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                timeLeft--;
+                timerLabel.setText("Time Left: " + timeLeft + "s");
+
+                if (timeLeft <= 0) {
+                    swingTimer.stop();
+                    handleTimeout();
+                } else if (timeLeft <= 5) {
+                    timerLabel.setForeground(Color.RED);
+                } else {
+                    timerLabel.setForeground(Color.BLACK);
+                }
+            }
+        });
+        swingTimer.start();
+    }
+
+    /** Handles the event when the user runs out of time. */
+    private void handleTimeout() {
+        incorrectAnswers++;
+        questionDisplay.append("\n\n--- TIME'S UP! ---\n");
+        int correctIndex = questions[currentQuestionIndex].correctOptionIndex;
+        questionDisplay.append("The correct answer was: " + questions[currentQuestionIndex].options[correctIndex]);
+
+        // Disable controls
+        for (JRadioButton button : optionButtons) {
+            button.setEnabled(false);
+        }
+        submitButton.setEnabled(false);
+        nextButton.setEnabled(true);
+    }
+
+    /** Processes the user's selected answer. */
+    private void submitAnswer() {
+        swingTimer.stop();
+
+        int selectedIndex = -1;
+        for (int i = 0; i < optionButtons.length; i++) {
+            if (optionButtons[i].isSelected()) {
+                selectedIndex = i;
+                break;
+            }
+        }
+
+        // --- Scoring and Feedback ---
+        if (selectedIndex != -1) {
+            int correctIndex = questions[currentQuestionIndex].correctOptionIndex;
+
+            if (selectedIndex == correctIndex) {
+                score += 10; // Award 10 points for a correct answer
+                correctAnswers++;
+                questionDisplay.append("\n\n--- Correct! (+10 Points) ---");
+            } else {
+                incorrectAnswers++;
+                questionDisplay.append("\n\n--- Incorrect! ---\n");
+                questionDisplay.append("The correct answer was: " + questions[currentQuestionIndex].options[correctIndex]);
+            }
+        } else {
+            // User submitted without selecting an option
+            incorrectAnswers++;
+            questionDisplay.append("\n\n--- No Answer Submitted! ---\n");
+            questionDisplay.append("The correct answer was: " + questions[currentQuestionIndex].options[questions[currentQuestionIndex].correctOptionIndex]);
+        }
+
+        // Disable controls and enable next button
+        for (JRadioButton button : optionButtons) {
+            button.setEnabled(false);
+        }
+        submitButton.setEnabled(false);
+        nextButton.setEnabled(true);
+    }
+
+    /** Moves to the next question or the result screen. */
+    private void nextQuestion() {
+        currentQuestionIndex++;
+        displayQuestion();
+    }
+
+    /** Displays the final score and summary. */
+    private void showResults() {
+        // Stop the timer if it's running
+        if (swingTimer != null && swingTimer.isRunning()) {
+            swingTimer.stop();
+        }
+
+        // Clear components from the frame
+        getContentPane().removeAll();
+        setLayout(new GridLayout(4, 1, 10, 10)); // Change layout for results screen
+
+        // Display results
+        JLabel title = new JLabel("QUIZ COMPLETED!", SwingConstants.CENTER);
+        title.setFont(new Font("Arial", Font.BOLD, 24));
+
+        JLabel finalScore = new JLabel("Final Score: " + score + " points", SwingConstants.CENTER);
+        finalScore.setFont(new Font("Arial", Font.BOLD, 20));
+
+        JLabel correctSummary = new JLabel("Correct Answers: " + correctAnswers, SwingConstants.CENTER);
+        correctSummary.setFont(new Font("Arial", Font.PLAIN, 16));
+
+        JLabel incorrectSummary = new JLabel("Incorrect/Missed Answers: " + incorrectAnswers, SwingConstants.CENTER);
+        incorrectSummary.setFont(new Font("Arial", Font.PLAIN, 16));
+
+        add(title);
+        add(finalScore);
+        add(correctSummary);
+        add(incorrectSummary);
+
+        // Repaint the frame to show the new content
+        revalidate();
+        repaint();
+    }
+
+    // --- MAIN METHOD ---
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> new QuizApplicationGUI());
+    }
+}v
