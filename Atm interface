@@ -1,0 +1,275 @@
+package com.mayank;
+
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.text.DecimalFormat;
+
+/**
+ * CLASS 1: BankAccount (Model)
+ * Stores the account balance and implements core transaction logic.
+ * This class is placed within the main file for single-file integration.
+ */
+class BankAccount {
+    private double balance;
+
+    public BankAccount(double initialBalance) {
+        this.balance = initialBalance;
+    }
+
+    public double getBalance() {
+        return balance;
+    }
+
+    /**
+     * Attempts to deposit funds into the account.
+     * @return true if deposit is successful, false otherwise.
+     */
+    public boolean deposit(double amount) {
+        if (amount <= 0) {
+            return false;
+        }
+        balance += amount;
+        return true;
+    }
+
+    /**
+     * Attempts to withdraw funds from the account.
+     * @return true if withdrawal is successful (sufficient balance), false otherwise.
+     */
+    public boolean withdraw(double amount) {
+        // Validate sufficient balance and positive amount (within acceptable limits)
+        if (amount <= 0 || amount > balance) {
+            return false;
+        }
+        balance -= amount;
+        return true;
+    }
+}
+
+/**
+ * CLASS 2: ATMInterfaceGUI (View and Controller)
+ * Handles the graphical user interface and translates user input into BankAccount operations.
+ */
+public class ATMInterfaceGUI extends JFrame {
+
+    // --- UI Components ---
+    private JTextArea displayArea;
+    private JTextField inputField;
+    private JButton submitButton;
+    private JButton backButton;
+
+    // --- Core Model Instance ---
+    private BankAccount account;
+
+    // --- State Variable and Formatters ---
+    private String currentTransaction = ""; // "DEPOSIT", "WITHDRAW", or ""
+    private static final DecimalFormat CURRENCY_FORMAT = new DecimalFormat("$,##0.00");
+
+    public ATMInterfaceGUI() {
+        // Initialize the Bank Account
+        account = new BankAccount(5000.00);
+
+        // --- 1. Frame Setup ---
+        setTitle("Enhanced ATM Interface");
+        setSize(500, 400);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLayout(new BorderLayout(15, 15));
+        setLocationRelativeTo(null); // Center the window
+
+        // --- 2. Central Display Area (North) ---
+        displayArea = new JTextArea();
+        displayArea.setEditable(false);
+        displayArea.setFont(new Font("SansSerif", Font.PLAIN, 16));
+        displayArea.setBackground(new Color(240, 240, 255)); // Light background
+        displayArea.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        JScrollPane scrollPane = new JScrollPane(displayArea);
+        scrollPane.setPreferredSize(new Dimension(500, 100));
+        add(scrollPane, BorderLayout.NORTH);
+
+        // --- 3. Main Control Panel (Center) ---
+        JPanel controlPanel = new JPanel(new GridLayout(1, 2, 15, 15));
+
+        JPanel buttonPanel = createButtonPanel();
+        controlPanel.add(buttonPanel);
+
+        JPanel inputPanel = createInputPanel();
+        controlPanel.add(inputPanel);
+
+        add(controlPanel, BorderLayout.CENTER);
+
+        // --- 4. Finalize and Show ---
+        updateDisplay("Welcome! Current Balance: " + CURRENCY_FORMAT.format(account.getBalance()));
+        setVisible(true);
+    }
+
+    // --- Private Factory Methods for UI Components ---
+
+    private JPanel createButtonPanel() {
+        JPanel panel = new JPanel(new GridLayout(3, 1, 10, 10));
+        panel.setBorder(BorderFactory.createTitledBorder("Transactions"));
+
+        JButton checkBalanceButton = new JButton("Check Balance");
+        JButton depositButton = new JButton("Deposit");
+        JButton withdrawButton = new JButton("Withdraw");
+        JButton exitButton = new JButton("Exit");
+
+        // Add Listeners
+        checkBalanceButton.addActionListener(e -> checkBalance());
+        depositButton.addActionListener(e -> initiateTransaction("DEPOSIT"));
+        withdrawButton.addActionListener(e -> initiateTransaction("WITHDRAW"));
+        exitButton.addActionListener(e -> System.exit(0));
+
+        panel.add(checkBalanceButton);
+        panel.add(depositButton);
+        panel.add(withdrawButton);
+        panel.add(exitButton);
+
+        return panel;
+    }
+
+    private JPanel createInputPanel() {
+        // Use GridBagLayout for flexible alignment
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBorder(BorderFactory.createTitledBorder("Input Area"));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        // Label
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        panel.add(new JLabel("Amount ($):"), gbc);
+
+        // Input Field
+        inputField = new JTextField(10);
+        inputField.setEnabled(false);
+        gbc.gridx = 1;
+        gbc.gridy = 0;
+        gbc.weightx = 1.0;
+        panel.add(inputField, gbc);
+
+        // Submit Button
+        submitButton = new JButton("Submit");
+        submitButton.setEnabled(false);
+        submitButton.addActionListener(e -> processInput());
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        gbc.gridwidth = 2;
+        panel.add(submitButton, gbc);
+
+        // Back Button
+        backButton = new JButton("Back to Menu");
+        backButton.setEnabled(false);
+        backButton.addActionListener(e -> resetATMState());
+        gbc.gridy = 2;
+        panel.add(backButton, gbc);
+
+        return panel;
+    }
+
+    // --- Controller Methods (Event Handling and Logic Delegation) ---
+
+    /** Helper method to update the main display area. */
+    private void updateDisplay(String message) {
+        displayArea.setText(message);
+    }
+
+    /** Helper to control the state of the input components. */
+    private void setInputState(boolean enabled) {
+        inputField.setEnabled(enabled);
+        submitButton.setEnabled(enabled);
+        backButton.setEnabled(enabled);
+
+        if (enabled) {
+            inputField.requestFocusInWindow();
+        } else {
+            // Clear and reset the input field when disabled
+            inputField.setText("");
+            currentTransaction = "";
+        }
+    }
+
+    /** Resets the ATM state to the main menu. */
+    private void resetATMState() {
+        setInputState(false);
+        updateDisplay("Transaction cancelled. Please select a new option.");
+    }
+
+
+    /** Displays the current account balance. */
+    private void checkBalance() {
+        setInputState(false);
+        double balance = account.getBalance();
+        updateDisplay(String.format("Current Balance: %s\n\nPlease select another option.", CURRENCY_FORMAT.format(balance)));
+    }
+
+    /** Sets up the UI for a new deposit or withdrawal transaction. */
+    private void initiateTransaction(String type) {
+        currentTransaction = type;
+        setInputState(true);
+
+        if (type.equals("DEPOSIT")) {
+            updateDisplay("DEPOSIT selected.\nPlease enter the amount to deposit in the input field:");
+        } else if (type.equals("WITHDRAW")) {
+            updateDisplay("WITHDRAW selected.\nPlease enter the amount to withdraw in the input field:");
+        }
+    }
+
+    /** Processes the amount entered by the user based on the current transaction type. */
+    private void processInput() {
+        if (currentTransaction.isEmpty()) {
+            updateDisplay("Error: Please select a transaction type first.");
+            return;
+        }
+
+        try {
+            double amount = Double.parseDouble(inputField.getText().trim());
+
+            if (amount <= 0) {
+                updateDisplay("Error: Amount must be positive. Please try again or press 'Back'.");
+                return;
+            }
+
+            // Delegation to private transaction methods
+            if (currentTransaction.equals("DEPOSIT")) {
+                doDeposit(amount);
+            } else if (currentTransaction.equals("WITHDRAW")) {
+                doWithdraw(amount);
+            }
+
+        } catch (NumberFormatException ex) {
+            updateDisplay("Error: Invalid input. Please enter a valid numerical amount.");
+        } finally {
+            inputField.setText(""); // Always clear input after attempt
+        }
+    }
+
+    /** Implements the deposit transaction logic. */
+    private void doDeposit(double amount) {
+        account.deposit(amount);
+        updateDisplay(String.format("Deposit Successful: %s\nNew Balance: %s\n\nSelect another option.",
+                CURRENCY_FORMAT.format(amount), CURRENCY_FORMAT.format(account.getBalance())));
+        setInputState(false);
+    }
+
+    /** Implements the withdrawal transaction logic and validation. */
+    private void doWithdraw(double amount) {
+        if (account.withdraw(amount)) {
+            updateDisplay(String.format("Withdrawal Successful: %s\nNew Balance: %s\n\nSelect another option.",
+                    CURRENCY_FORMAT.format(amount), CURRENCY_FORMAT.format(account.getBalance())));
+        } else {
+            // Failure: Insufficient balance
+            updateDisplay(String.format("Withdrawal Failed: Insufficient Balance.\nYour current balance is %s.\n\nSelect another option.",
+                    CURRENCY_FORMAT.format(account.getBalance())));
+        }
+        setInputState(false);
+    }
+
+    // --- MAIN METHOD ---
+    public static void main(String[] args) {
+        // Use SwingUtilities.invokeLater to ensure thread safety for GUI creation
+        SwingUtilities.invokeLater(() -> new ATMInterfaceGUI());
+    }
+}v
