@@ -1,0 +1,187 @@
+package com.mayank;
+
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.ActionListener;
+import java.util.ArrayList;
+import java.util.List;
+
+public class GradeCalculatorGUI extends JFrame {
+
+    // --- UI Components ---
+    private JPanel subjectInputPanel;
+    private JTextField numSubjectsField;
+    private JButton createFieldsButton;
+    private JButton calculateButton;
+    private JLabel totalMarksLabel;
+    private JLabel averagePercentageLabel;
+    private JLabel gradeLabel;
+
+    // --- Configuration ---
+    private static final int MAX_SUBJECTS = 10;
+    private List<JTextField> subjectMarkFields;
+
+    public GradeCalculatorGUI() {
+        // --- 1. Frame Setup ---
+        setTitle("Student Grade Calculator");
+        setSize(500, 600); // Increased size to fit more content
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLocationRelativeTo(null);
+        setLayout(new BorderLayout(10, 10)); // Main layout for the frame
+
+        // Initialize list to hold subject input fields
+        subjectMarkFields = new ArrayList<>();
+
+        // --- 2. Top Panel: Subject Count Input ---
+        JPanel setupPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 10));
+        numSubjectsField = new JTextField(5);
+        createFieldsButton = new JButton("Create Subject Fields");
+
+        setupPanel.add(new JLabel("Number of Subjects (Max " + MAX_SUBJECTS + "):"));
+        setupPanel.add(numSubjectsField);
+        setupPanel.add(createFieldsButton);
+
+        add(setupPanel, BorderLayout.NORTH);
+
+        // --- 3. Center Panel: Dynamic Subject Inputs (Initially empty) ---
+        subjectInputPanel = new JPanel();
+        subjectInputPanel.setLayout(new BoxLayout(subjectInputPanel, BoxLayout.Y_AXIS));
+        JScrollPane scrollPane = new JScrollPane(subjectInputPanel); // Use JScrollPane for many subjects
+        add(scrollPane, BorderLayout.CENTER);
+
+        // --- 4. Bottom Panel: Controls and Results ---
+        JPanel resultsPanel = new JPanel(new GridLayout(4, 1, 5, 5));
+        calculateButton = new JButton("Calculate Grade");
+        totalMarksLabel = new JLabel("Total Marks: N/A", SwingConstants.CENTER);
+        averagePercentageLabel = new JLabel("Average Percentage: N/A", SwingConstants.CENTER);
+        gradeLabel = new JLabel("Grade: N/A", SwingConstants.CENTER);
+        gradeLabel.setFont(new Font("Arial", Font.BOLD, 16));
+
+        resultsPanel.add(calculateButton);
+        resultsPanel.add(totalMarksLabel);
+        resultsPanel.add(averagePercentageLabel);
+        resultsPanel.add(gradeLabel);
+
+        add(resultsPanel, BorderLayout.SOUTH);
+
+        // --- 5. Add Event Listeners ---
+        addEventListeners();
+
+        setVisible(true);
+    }
+
+    /** Sets up action listeners for the buttons. */
+    private void addEventListeners() {
+        createFieldsButton.addActionListener(e -> createSubjectFields());
+        calculateButton.addActionListener(e -> calculateResults());
+    }
+
+    /** Dynamically creates JTextFields based on user input for the number of subjects. */
+    private void createSubjectFields() {
+        try {
+            int numSubjects = Integer.parseInt(numSubjectsField.getText().trim());
+
+            if (numSubjects <= 0 || numSubjects > MAX_SUBJECTS) {
+                JOptionPane.showMessageDialog(this, "Please enter a valid number of subjects (1 to " + MAX_SUBJECTS + ").", "Input Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            // Clear previous fields
+            subjectInputPanel.removeAll();
+            subjectMarkFields.clear();
+
+            for (int i = 0; i < numSubjects; i++) {
+                JTextField markField = new JTextField(5);
+                JPanel rowPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+                rowPanel.add(new JLabel("Subject " + (i + 1) + " Marks (out of 100):"));
+                rowPanel.add(markField);
+
+                subjectInputPanel.add(rowPanel);
+                subjectMarkFields.add(markField);
+            }
+
+            // Re-validate and repaint the panel to show new fields
+            subjectInputPanel.revalidate();
+            subjectInputPanel.repaint();
+
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(this, "Invalid number of subjects entered.", "Input Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    /** Core logic to perform calculations and display the grade. */
+    private void calculateResults() {
+        if (subjectMarkFields.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Please create subject fields first.", "Calculation Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        int totalMarks = 0;
+        int numSubjects = subjectMarkFields.size();
+
+        // --- 1. Input & Calculate Total Marks ---
+        for (JTextField field : subjectMarkFields) {
+            try {
+                int marks = Integer.parseInt(field.getText().trim());
+
+                // Input validation (marks must be between 0 and 100)
+                if (marks < 0 || marks > 100) {
+                    JOptionPane.showMessageDialog(this, "Marks for a subject must be between 0 and 100.", "Input Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                totalMarks += marks;
+            } catch (NumberFormatException ex) {
+                JOptionPane.showMessageDialog(this, "All subject marks must be valid numbers.", "Input Error", JOptionPane.ERROR_MESSAGE);
+                return; // Stop calculation if any input is invalid
+            }
+        }
+
+        // --- 2. Calculate Average Percentage ---
+        // Use double for accurate percentage calculation
+        double averagePercentage = (double) totalMarks / numSubjects;
+
+        // --- 3. Grade Calculation ---
+        String grade = calculateGrade(averagePercentage);
+
+        // --- 4. Display Results ---
+        totalMarksLabel.setText("Total Marks: " + totalMarks + " / " + (numSubjects * 100));
+        averagePercentageLabel.setText(String.format("Average Percentage: %.2f%%", averagePercentage));
+        gradeLabel.setText("GRADE: " + grade);
+
+        // Optional: Highlight the grade result
+        gradeLabel.setForeground(getGradeColor(grade));
+    }
+
+    /** Assigns a grade based on the average percentage. */
+    private String calculateGrade(double avg) {
+        if (avg >= 90) {
+            return "A+ (Excellent)";
+        } else if (avg >= 80) {
+            return "A (Very Good)";
+        } else if (avg >= 70) {
+            return "B (Good)";
+        } else if (avg >= 60) {
+            return "C (Fair)";
+        } else if (avg >= 50) {
+            return "D (Pass)";
+        } else {
+            return "F (Fail)";
+        }
+    }
+
+    /** Helper function to assign color based on grade for display. */
+    private Color getGradeColor(String grade) {
+        if (grade.startsWith("A+")) return Color.GREEN.darker();
+        if (grade.startsWith("A")) return Color.GREEN;
+        if (grade.startsWith("B")) return Color.BLUE;
+        if (grade.startsWith("C")) return Color.ORANGE.darker();
+        if (grade.startsWith("D")) return Color.YELLOW.darker();
+        return Color.RED;
+    }
+
+    // --- MAIN METHOD ---
+    public static void main(String[] args) {
+        // Ensure the Swing application runs on the Event Dispatch Thread (EDT)
+        SwingUtilities.invokeLater(() -> new GradeCalculatorGUI());
+    }
+}v
